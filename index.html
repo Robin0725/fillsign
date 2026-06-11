@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FillSign — Fill & Sign PDF Online Free. No Upload, No Signup.</title>
+<meta name="description" content="Fill out and sign any PDF form right in your browser. Your file never leaves your device — no upload, no signup, no subscription. Add text, checkmarks and your signature, then download. Free.">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<style>
+  :root {
+    --bg: #f4f6fa;
+    --panel: #ffffff;
+    --border: #dde3ee;
+    --text: #1c2333;
+    --muted: #66708a;
+    --accent: #2563eb;
+    --accent-dark: #1d4ed8;
+    --green: #16a34a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  }
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+  }
+  .logo { font-size: 19px; font-weight: 800; letter-spacing: -.3px; }
+  .logo span { color: var(--accent); }
+  .pro-pill {
+    background: #eef3ff;
+    color: var(--accent-dark);
+    border: 1px solid #c7d7fe;
+    padding: 7px 14px;
+    border-radius: 99px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .hero { text-align: center; padding: 48px 20px 8px; }
+  .hero h1 { font-size: clamp(26px, 4.5vw, 40px); letter-spacing: -.8px; margin-bottom: 14px; }
+  .hero h1 em { font-style: normal; color: var(--accent); }
+  .hero p { color: var(--muted); font-size: 16px; max-width: 560px; margin: 0 auto; line-height: 1.6; }
+  .badges { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 18px; }
+  .badge {
+    background: #ecfdf3;
+    color: #15803d;
+    border: 1px solid #bbe7c9;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 5px 12px;
+    border-radius: 99px;
+  }
+  .dropwrap { max-width: 720px; margin: 28px auto 40px; padding: 0 20px; }
+  .dropzone {
+    border: 2px dashed #b9c4dd;
+    background: var(--panel);
+    border-radius: 18px;
+    padding: 56px 30px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+  }
+  .dropzone:hover, .dropzone.over { border-color: var(--accent); background: #f6f9ff; }
+  .dropzone .big { font-size: 40px; margin-bottom: 10px; }
+  .dropzone h2 { font-size: 18px; margin-bottom: 6px; }
+  .dropzone p { color: var(--muted); font-size: 14px; }
+  /* editor */
+  #editor { display: none; }
+  .toolbar {
+    position: sticky;
+    top: 61px;
+    z-index: 25;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .tbtn {
+    background: #f1f4fa;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 9px 16px;
+    border-radius: 9px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .tbtn:hover { background: #e8edf7; }
+  .tbtn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .tbtn.small { padding: 9px 12px; }
+  .dlbtn {
+    background: var(--green);
+    border: none;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 9px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .dlbtn:hover { opacity: .9; }
+  .hint { color: var(--muted); font-size: 13px; width: 100%; text-align: center; padding-top: 2px; }
+  #pages { max-width: 900px; margin: 26px auto 60px; padding: 0 14px; }
+  .pagewrap {
+    position: relative;
+    margin: 0 auto 22px;
+    box-shadow: 0 4px 24px rgba(28,35,51,.12);
+    border-radius: 4px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .pagewrap canvas { display: block; }
+  .overlay { position: absolute; inset: 0; }
+  .overlay.mode-text { cursor: text; }
+  .overlay.mode-check, .overlay.mode-sign { cursor: crosshair; }
+  .el { position: absolute; touch-action: none; }
+  .el.selected { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 2px; }
+  .el .del {
+    display: none;
+    position: absolute;
+    top: -12px;
+    right: -12px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #ef4444;
+    color: #fff;
+    border: none;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 5;
+  }
+  .el.selected .del { display: block; }
+  .el-text span {
+    display: block;
+    min-width: 28px;
+    outline: none;
+    white-space: pre-wrap;
+    font-family: Helvetica, Arial, sans-serif;
+    color: #111;
+    line-height: 1.18;
+    cursor: move;
+  }
+  .el-text span:focus { cursor: text; }
+  .el-check { color: var(--accent-dark); font-weight: 700; cursor: move; line-height: 1; user-select: none; }
+  .el-sig img { display: block; width: 100%; height: 100%; cursor: move; user-select: none; -webkit-user-drag: none; }
+  .el-sig .rsz {
+    position: absolute;
+    right: -7px;
+    bottom: -7px;
+    width: 14px;
+    height: 14px;
+    background: var(--accent);
+    border: 2px solid #fff;
+    border-radius: 50%;
+    cursor: nwse-resize;
+    display: none;
+  }
+  .el-sig.selected .rsz { display: block; }
+  /* modal */
+  .modal-bg {
+    position: fixed;
+    inset: 0;
+    background: rgba(15,20,35,.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 60;
+  }
+  .modal-bg.open { display: flex; }
+  .modal {
+    background: #fff;
+    border-radius: 16px;
+    padding: 26px;
+    max-width: 560px;
+    width: calc(100% - 36px);
+  }
+  .modal h3 { margin-bottom: 14px; font-size: 18px; }
+  #sigpad {
+    border: 1.5px dashed #b9c4dd;
+    border-radius: 10px;
+    width: 100%;
+    height: 190px;
+    touch-action: none;
+    cursor: crosshair;
+    background: #fcfdff;
+  }
+  .modal .row { display: flex; gap: 10px; margin-top: 14px; align-items: center; flex-wrap: wrap; }
+  .penopt { display: flex; gap: 6px; margin-right: auto; }
+  .pen {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+  }
+  .pen.active { border-color: var(--accent); box-shadow: 0 0 0 2px #fff inset; }
+  .mbtn {
+    padding: 9px 18px;
+    border-radius: 9px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: #f1f4fa;
+  }
+  .mbtn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .modal p { color: var(--muted); font-size: 14px; line-height: 1.7; }
+  .modal ul { color: var(--muted); font-size: 14px; line-height: 1.9; padding-left: 20px; margin: 10px 0; }
+  /* content / faq */
+  .content { max-width: 760px; margin: 0 auto; padding: 30px 20px 70px; }
+  .content h2 { font-size: 22px; margin: 34px 0 12px; letter-spacing: -.3px; }
+  .content p, .content li { color: var(--muted); font-size: 15px; line-height: 1.75; }
+  .content ul { padding-left: 22px; }
+  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-top: 16px; }
+  .step { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 18px; }
+  .step b { display: block; margin-bottom: 6px; color: var(--text); }
+  .step span { font-size: 14px; color: var(--muted); line-height: 1.6; }
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 18px 24px;
+    color: var(--muted);
+    font-size: 13px;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Fill<span>Sign</span></div>
+  <button class="pro-pill" onclick="openModal('promodal')">✨ Pro — coming soon</button>
+</header>
+
+<div id="landing">
+  <div class="hero">
+    <h1>Fill &amp; sign any PDF — <em>right in your browser</em></h1>
+    <p>No upload. No signup. No "pay to download" ambush after you've filled everything in. Your document never leaves your device.</p>
+    <div class="badges">
+      <span class="badge">🔒 100% private — runs locally</span>
+      <span class="badge">⚡ No account needed</span>
+      <span class="badge">💯 Free</span>
+    </div>
+  </div>
+  <div class="dropwrap">
+    <div class="dropzone" id="dropzone">
+      <div class="big">📄</div>
+      <h2>Drop your PDF here</h2>
+      <p>or click to choose a file — it stays on your computer</p>
+    </div>
+  </div>
+</div>
+
+<div id="editor">
+  <div class="toolbar">
+    <button class="tbtn active" id="m-text" onclick="setMode('text')">T Text</button>
+    <button class="tbtn" id="m-check" onclick="setMode('check')">✓ Check</button>
+    <button class="tbtn" id="m-sign" onclick="setMode('sign')">✍️ Sign</button>
+    <button class="tbtn small" onclick="bumpFont(-2)">A−</button>
+    <button class="tbtn small" onclick="bumpFont(2)">A+</button>
+    <button class="dlbtn" onclick="downloadPdf()">⬇ Download PDF</button>
+    <div class="hint" id="hint">Click anywhere on the document to add text.</div>
+  </div>
+  <div id="pages"></div>
+</div>
+
+<div class="content">
+  <h2>How it works</h2>
+  <div class="steps">
+    <div class="step"><b>1. Open your PDF</b><span>Drag it in. It's processed by your own browser — nothing is uploaded to any server.</span></div>
+    <div class="step"><b>2. Fill &amp; sign</b><span>Click to type text anywhere, add checkmarks, and draw your signature with mouse or finger.</span></div>
+    <div class="step"><b>3. Download</b><span>Get your filled, signed PDF instantly. No watermark, no paywall, no email required.</span></div>
+  </div>
+
+  <h2>Why is FillSign free when others charge $96/year?</h2>
+  <p>Most online PDF fillers upload your document to their servers, let you fill in the whole form, and only then reveal that downloading costs money. Running servers is expensive, so they need subscriptions. FillSign does all the work inside your browser instead — there are no servers processing your files, so there's almost nothing for us to pay for, and nothing for you to pay for. Core filling and signing will stay free.</p>
+
+  <h2>Is it safe for sensitive documents?</h2>
+  <p>Safer than any upload-based tool, by design. Tax forms, leases, medical forms, contracts — your file is opened and edited locally on your device, exactly like a desktop app. If you turn off your internet connection after the page loads, FillSign keeps working. That's the proof.</p>
+
+  <h2>FAQ</h2>
+  <ul>
+    <li><b>Can I sign a PDF with my mouse or finger?</b> Yes — click Sign, draw your signature, place it anywhere, and resize it.</li>
+    <li><b>Does it work on scanned PDFs?</b> Yes. You type on top of the page, so it works on any PDF — scanned forms included.</li>
+    <li><b>Do you keep a copy of my document?</b> We can't. Your file never reaches us — it stays in your browser's memory and is gone when you close the tab.</li>
+    <li><b>Is there a watermark?</b> No. Your document is yours.</li>
+    <li><b>What's Pro?</b> Optional one-time purchase (no subscription) coming soon: saved reusable signatures, batch filling, and templates. Everything you see today stays free.</li>
+  </ul>
+</div>
+
+<footer>
+  <span>© 2026 FillSign — fill &amp; sign PDFs online, privately.</span>
+  <span>Made with care for people tired of subscription traps.</span>
+</footer>
+
+<div class="modal-bg" id="sigmodal">
+  <div class="modal">
+    <h3>Draw your signature</h3>
+    <canvas id="sigpad"></canvas>
+    <div class="row">
+      <div class="penopt">
+        <div class="pen active" style="background:#1e3a8a" data-c="#1e3a8a" title="Blue ink"></div>
+        <div class="pen" style="background:#111111" data-c="#111111" title="Black ink"></div>
+      </div>
+      <button class="mbtn" onclick="clearSig()">Clear</button>
+      <button class="mbtn" onclick="closeModal('sigmodal')">Cancel</button>
+      <button class="mbtn primary" onclick="useSig()">Use signature</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="promodal" onclick="if(event.target===this)closeModal('promodal')">
+  <div class="modal">
+    <h3>✨ FillSign Pro — one-time purchase, never a subscription</h3>
+    <p>Coming soon, planned at a single one-time price:</p>
+    <ul>
+      <li>Saved signatures — sign any document in two clicks</li>
+      <li>Batch mode — fill many files at once</li>
+      <li>Reusable templates for forms you fill monthly</li>
+    </ul>
+    <p>While we're in beta, <b>everything is free</b>. Enjoy.</p>
+    <div class="row" style="justify-content:flex-end">
+      <button class="mbtn primary" onclick="closeModal('promodal')">Got it</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="file" accept="application/pdf" hidden>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+let pdfBytes = null;      // original file bytes (ArrayBuffer)
+let fileName = 'document';
+let pageMeta = [];        // {scale, wpx, hpx, overlay}
+let elements = [];        // {id, page, type, x, y, fs, w, h, sig, node}
+let mode = 'text';
+let elSeq = 0;
+let selected = null;
+let savedSig = null;      // dataURL of last drawn signature
+const SIG_W = 180;
+
+/* ---------- file loading ---------- */
+const dz = document.getElementById('dropzone');
+dz.onclick = () => document.getElementById('file').click();
+dz.ondragover = e => { e.preventDefault(); dz.classList.add('over'); };
+dz.ondragleave = () => dz.classList.remove('over');
+dz.ondrop = e => { e.preventDefault(); dz.classList.remove('over'); loadFile(e.dataTransfer.files[0]); };
+document.getElementById('file').onchange = e => loadFile(e.target.files[0]);
+
+async function loadFile(f) {
+  if (!f || f.type !== 'application/pdf') { alert('Please choose a PDF file.'); return; }
+  fileName = f.name.replace(/\.pdf$/i, '');
+  pdfBytes = await f.arrayBuffer();
+  const doc = await pdfjsLib.getDocument({ data: pdfBytes.slice(0) }).promise;
+  document.getElementById('landing').style.display = 'none';
+  document.getElementById('editor').style.display = 'block';
+  const container = document.getElementById('pages');
+  container.innerHTML = '';
+  pageMeta = []; elements = []; selected = null;
+  const maxW = Math.min(860, container.clientWidth - 8);
+  const dpr = window.devicePixelRatio || 1;
+  for (let i = 1; i <= doc.numPages; i++) {
+    const page = await doc.getPage(i);
+    const base = page.getViewport({ scale: 1 });
+    const scale = maxW / base.width;
+    const vp = page.getViewport({ scale });
+    const wrap = document.createElement('div');
+    wrap.className = 'pagewrap';
+    wrap.style.width = vp.width + 'px';
+    wrap.style.height = vp.height + 'px';
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.floor(vp.width * dpr);
+    canvas.height = Math.floor(vp.height * dpr);
+    canvas.style.width = vp.width + 'px';
+    canvas.style.height = vp.height + 'px';
+    wrap.appendChild(canvas);
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay mode-text';
+    overlay.dataset.page = i - 1;
+    overlay.addEventListener('pointerdown', overlayDown);
+    wrap.appendChild(overlay);
+    container.appendChild(wrap);
+    pageMeta.push({ scale, wpx: vp.width, hpx: vp.height, overlay });
+    page.render({ canvasContext: canvas.getContext('2d'), viewport: page.getViewport({ scale: scale * dpr }) });
+  }
+  window.scrollTo({ top: 0 });
+}
+
+/* ---------- modes ---------- */
+function setMode(m) {
+  mode = m;
+  ['text', 'check', 'sign'].forEach(k => document.getElementById('m-' + k).classList.toggle('active', k === m));
+  pageMeta.forEach(p => p.overlay.className = 'overlay mode-' + m);
+  document.getElementById('hint').textContent =
+    m === 'text' ? 'Click anywhere on the document to add text.' :
+    m === 'check' ? 'Click to place a checkmark.' :
+    savedSig ? 'Click where you want to place your signature.' : 'Draw your signature, then click to place it.';
+  if (m === 'sign' && !savedSig) openModal('sigmodal');
+}
+
+function overlayDown(e) {
+  if (e.target !== e.currentTarget) return; // clicked an element, not empty page
+  select(null);
+  const pg = +e.currentTarget.dataset.page;
+  const r = e.currentTarget.getBoundingClientRect();
+  const x = e.clientX - r.left, y = e.clientY - r.top;
+  if (mode === 'text') addText(pg, x, y - 9);
+  else if (mode === 'check') addCheck(pg, x - 8, y - 9);
+  else if (mode === 'sign') {
+    if (savedSig) addSig(pg, x - SIG_W / 2, y - 30, savedSig);
+    else openModal('sigmodal');
+  }
+}
+
+/* ---------- elements ---------- */
+function baseEl(pg, type, x, y) {
+  const el = { id: ++elSeq, page: pg, type, x, y, node: null };
+  const node = document.createElement('div');
+  node.className = 'el el-' + type;
+  node.style.left = x + 'px';
+  node.style.top = y + 'px';
+  const del = document.createElement('button');
+  del.className = 'del';
+  del.textContent = '×';
+  del.onpointerdown = ev => ev.stopPropagation();
+  del.onclick = ev => { ev.stopPropagation(); removeEl(el); };
+  node.appendChild(del);
+  node.addEventListener('pointerdown', ev => elDown(ev, el));
+  el.node = node;
+  pageMeta[pg].overlay.appendChild(node);
+  elements.push(el);
+  return el;
+}
+
+function addText(pg, x, y) {
+  const el = baseEl(pg, 'text', x, y);
+  el.fs = 16;
+  const span = document.createElement('span');
+  try { span.contentEditable = 'plaintext-only'; } catch { span.contentEditable = 'true'; }
+  span.style.fontSize = el.fs + 'px';
+  el.node.appendChild(span);
+  span.addEventListener('blur', () => { if (!span.innerText.trim()) removeEl(el); });
+  select(el);
+  setTimeout(() => span.focus(), 0);
+}
+
+function addCheck(pg, x, y) {
+  const el = baseEl(pg, 'check', x, y);
+  el.fs = 18;
+  const s = document.createElement('div');
+  s.textContent = '✓';
+  s.style.fontSize = el.fs + 'px';
+  el.node.appendChild(s);
+  select(el);
+}
+
+function addSig(pg, x, y, dataUrl) {
+  const el = baseEl(pg, 'sig', x, y);
+  el.sig = dataUrl;
+  el.w = SIG_W;
+  el.h = SIG_W * sigRatio;
+  el.node.style.width = el.w + 'px';
+  el.node.style.height = el.h + 'px';
+  const img = document.createElement('img');
+  img.src = dataUrl;
+  img.draggable = false;
+  el.node.appendChild(img);
+  const rsz = document.createElement('div');
+  rsz.className = 'rsz';
+  rsz.addEventListener('pointerdown', ev => startResize(ev, el));
+  el.node.appendChild(rsz);
+  select(el);
+}
+
+function removeEl(el) {
+  el.node.remove();
+  elements = elements.filter(e => e !== el);
+  if (selected === el) selected = null;
+}
+
+function select(el) {
+  if (selected) selected.node.classList.remove('selected');
+  selected = el;
+  if (el) el.node.classList.add('selected');
+}
+
+function bumpFont(d) {
+  if (!selected || selected.type === 'sig') return;
+  selected.fs = Math.max(8, Math.min(60, selected.fs + d));
+  const t = selected.node.querySelector(selected.type === 'text' ? 'span' : 'div:not(.rsz)');
+  if (t) t.style.fontSize = selected.fs + 'px';
+}
+
+document.addEventListener('keydown', e => {
+  if ((e.key === 'Delete' || e.key === 'Backspace') && selected &&
+      !document.activeElement.isContentEditable &&
+      document.activeElement.tagName !== 'INPUT') {
+    e.preventDefault();
+    removeEl(selected);
+  }
+});
+
+/* ---------- drag & resize ---------- */
+function elDown(e, el) {
+  e.stopPropagation();
+  select(el);
+  const isText = el.type === 'text';
+  const span = isText ? el.node.querySelector('span') : null;
+  const editing = span && document.activeElement === span;
+  if (editing) return; // let them type
+  const startX = e.clientX, startY = e.clientY, ox = el.x, oy = el.y;
+  let moved = false;
+  const meta = pageMeta[el.page];
+  function mv(ev) {
+    const dx = ev.clientX - startX, dy = ev.clientY - startY;
+    if (Math.abs(dx) + Math.abs(dy) > 4) moved = true;
+    if (!moved) return;
+    el.x = Math.max(0, Math.min(meta.wpx - 20, ox + dx));
+    el.y = Math.max(0, Math.min(meta.hpx - 14, oy + dy));
+    el.node.style.left = el.x + 'px';
+    el.node.style.top = el.y + 'px';
+  }
+  function up(ev) {
+    document.removeEventListener('pointermove', mv);
+    document.removeEventListener('pointerup', up);
+    if (!moved && isText) span.focus();
+  }
+  document.addEventListener('pointermove', mv);
+  document.addEventListener('pointerup', up);
+}
+
+function startResize(e, el) {
+  e.stopPropagation();
+  const startX = e.clientX, ow = el.w;
+  function mv(ev) {
+    el.w = Math.max(50, ow + (ev.clientX - startX));
+    el.h = el.w * sigRatio;
+    el.node.style.width = el.w + 'px';
+    el.node.style.height = el.h + 'px';
+  }
+  function up() {
+    document.removeEventListener('pointermove', mv);
+    document.removeEventListener('pointerup', up);
+  }
+  document.addEventListener('pointermove', mv);
+  document.addEventListener('pointerup', up);
+}
+
+/* ---------- signature pad ---------- */
+const pad = document.getElementById('sigpad');
+let padCtx = null, drawing = false, penColor = '#1e3a8a', padDirty = false;
+let sigRatio = 0.38;
+
+function setupPad() {
+  const dpr = window.devicePixelRatio || 1;
+  const r = pad.getBoundingClientRect();
+  pad.width = r.width * dpr;
+  pad.height = r.height * dpr;
+  padCtx = pad.getContext('2d');
+  padCtx.scale(dpr, dpr);
+  padCtx.lineWidth = 2.4;
+  padCtx.lineCap = 'round';
+  padCtx.lineJoin = 'round';
+  sigRatio = r.height / r.width;
+  padDirty = false;
+}
+
+document.querySelectorAll('.pen').forEach(p => p.onclick = () => {
+  penColor = p.dataset.c;
+  document.querySelectorAll('.pen').forEach(q => q.classList.toggle('active', q === p));
+});
+
+pad.addEventListener('pointerdown', e => {
+  drawing = true;
+  padDirty = true;
+  pad.setPointerCapture(e.pointerId);
+  const r = pad.getBoundingClientRect();
+  padCtx.strokeStyle = penColor;
+  padCtx.beginPath();
+  padCtx.moveTo(e.clientX - r.left, e.clientY - r.top);
+});
+pad.addEventListener('pointermove', e => {
+  if (!drawing) return;
+  const r = pad.getBoundingClientRect();
+  padCtx.lineTo(e.clientX - r.left, e.clientY - r.top);
+  padCtx.stroke();
+});
+pad.addEventListener('pointerup', () => drawing = false);
+
+function clearSig() {
+  padCtx.clearRect(0, 0, pad.width, pad.height);
+  padDirty = false;
+}
+function useSig() {
+  if (!padDirty) { alert('Draw your signature first.'); return; }
+  savedSig = pad.toDataURL('image/png');
+  closeModal('sigmodal');
+  document.getElementById('hint').textContent = 'Click where you want to place your signature.';
+}
+
+/* ---------- export ---------- */
+function sanitize(t) {
+  return t.replace(/[‘’]/g, "'").replace(/[“”]/g, '"')
+          .replace(/[^\x20-\x7E\u00A0-\u00FF\n]/g, '?');
+}
+
+async function downloadPdf() {
+  if (!pdfBytes) return;
+  document.activeElement && document.activeElement.blur();
+  const doc = await PDFLib.PDFDocument.load(pdfBytes);
+  const font = await doc.embedFont(PDFLib.StandardFonts.Helvetica);
+  const sigCache = {};
+  const pages = doc.getPages();
+  for (const el of elements) {
+    const p = pages[el.page];
+    const s = pageMeta[el.page].scale;
+    const ph = p.getHeight();
+    if (el.type === 'text') {
+      const span = el.node.querySelector('span');
+      const raw = span ? span.innerText : '';
+      if (!raw.trim()) continue;
+      const size = el.fs / s;
+      const lineH = el.fs * 1.18 / s;
+      sanitize(raw).split('\n').forEach((line, i) => {
+        p.drawText(line, {
+          x: el.x / s,
+          y: ph - (el.y / s) - (i + 1) * lineH + lineH * 0.22,
+          size, font, color: PDFLib.rgb(0.07, 0.07, 0.07),
+        });
+      });
+    } else if (el.type === 'check') {
+      const u = el.fs / s; // unit
+      const bx = el.x / s, by = ph - (el.y / s) - u;
+      const c = PDFLib.rgb(0.11, 0.3, 0.85);
+      const th = Math.max(1.2, u * 0.13);
+      p.drawLine({ start: { x: bx + u * 0.1, y: by + u * 0.45 }, end: { x: bx + u * 0.38, y: by + u * 0.15 }, thickness: th, color: c });
+      p.drawLine({ start: { x: bx + u * 0.38, y: by + u * 0.15 }, end: { x: bx + u * 0.9, y: by + u * 0.85 }, thickness: th, color: c });
+    } else if (el.type === 'sig') {
+      if (!sigCache[el.sig]) sigCache[el.sig] = await doc.embedPng(el.sig);
+      p.drawImage(sigCache[el.sig], {
+        x: el.x / s,
+        y: ph - (el.y + el.h) / s,
+        width: el.w / s,
+        height: el.h / s,
+      });
+    }
+  }
+  const out = await doc.save();
+  const blob = new Blob([out], { type: 'application/pdf' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fileName + '-signed.pdf';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+
+/* ---------- modals ---------- */
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+  if (id === 'sigmodal') setTimeout(setupPad, 30);
+}
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+</script>
+</body>
+</html>
