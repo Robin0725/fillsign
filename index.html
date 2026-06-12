@@ -247,13 +247,90 @@
     flex-wrap: wrap;
     gap: 8px;
   }
+  /* pro / license */
+  .pro-pill.active { background: #ecfdf3; color: #15803d; border-color: #bbe7c9; }
+  .lock { opacity: .75; font-size: .85em; }
+  body.pro .lock { display: none; }
+  .linkbtn {
+    background: none;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 0;
+  }
+  .linkbtn:hover { text-decoration: underline; }
+  .txtin {
+    padding: 9px 12px;
+    border-radius: 9px;
+    border: 1px solid var(--border);
+    font-size: 14px;
+    background: #fcfdff;
+    color: var(--text);
+    font-family: inherit;
+  }
+  .licerr { color: #dc2626; font-size: 14px; margin-top: 10px; display: none; }
+  .mbtn.small { padding: 6px 10px; font-size: 12px; }
+  /* saved signatures */
+  .sigthumbs { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+  .sigthumb {
+    position: relative;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fcfdff;
+    cursor: pointer;
+    padding: 4px 8px;
+  }
+  .sigthumb:hover { border-color: var(--accent); }
+  .sigthumb img { height: 40px; display: block; }
+  .sigthumb .x {
+    position: absolute;
+    top: -9px;
+    right: -9px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #ef4444;
+    color: #fff;
+    border: none;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  /* templates & batch */
+  #tpllist, #batchlog { margin-top: 14px; max-height: 260px; overflow-y: auto; }
+  .tplrow { display: flex; gap: 8px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .tplrow:last-child { border-bottom: none; }
+  .tplname { flex: 1; font-size: 14px; color: var(--text); word-break: break-word; }
+  .batchline { font-size: 13px; color: var(--muted); padding: 3px 0; }
+  #batchprog { font-size: 13px; font-weight: 600; color: var(--text); margin-top: 12px; min-height: 18px; }
+  /* toast */
+  #toast {
+    position: fixed;
+    bottom: 26px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1c2333;
+    color: #fff;
+    padding: 11px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    z-index: 100;
+    opacity: 0;
+    transition: opacity .25s;
+    pointer-events: none;
+    max-width: calc(100% - 40px);
+    text-align: center;
+  }
+  #toast.show { opacity: 1; }
 </style>
 </head>
 <body>
 
 <header>
   <div class="logo">Fill<span>Sign</span></div>
-  <button class="pro-pill" onclick="openModal('promodal')">✨ Pro — $15 lifetime, coming soon</button>
+  <button class="pro-pill" id="propill" onclick="openModal('promodal')">✨ Pro<span id="pillsub"> — $15 lifetime</span></button>
 </header>
 
 <div id="landing">
@@ -272,6 +349,9 @@
       <h2>Drop your PDF here</h2>
       <p>or click to choose a file — it stays on your computer</p>
     </div>
+    <p style="text-align:center;margin-top:14px">
+      <button class="linkbtn" onclick="openBatch()">🗂 Batch mode: fill many PDFs with a saved template<span class="lock"> 🔒</span></button>
+    </p>
   </div>
 </div>
 
@@ -282,6 +362,8 @@
     <button class="tbtn" id="m-sign" onclick="setMode('sign')">✍️ Sign</button>
     <button class="tbtn small" onclick="bumpFont(-2)">A−</button>
     <button class="tbtn small" onclick="bumpFont(2)">A+</button>
+    <button class="tbtn" onclick="openTemplates()">📋 Templates<span class="lock"> 🔒</span></button>
+    <button class="tbtn" onclick="openBatch()">🗂 Batch<span class="lock"> 🔒</span></button>
     <button class="dlbtn" onclick="downloadPdf()">⬇ Download PDF</button>
     <div class="hint" id="hint">Click anywhere on the document to add text.</div>
   </div>
@@ -308,7 +390,7 @@
     <li><b>Does it work on scanned PDFs?</b> Yes. You type on top of the page, so it works on any PDF — scanned forms included.</li>
     <li><b>Do you keep a copy of my document?</b> We can't. Your file never reaches us — it stays in your browser's memory and is gone when you close the tab.</li>
     <li><b>Is there a watermark?</b> No. Your document is yours.</li>
-    <li><b>What's Pro?</b> An optional <b>$15 one-time purchase</b> (no subscription, ever) coming soon: saved reusable signatures, batch filling, and templates. Comes with a 14-day money-back guarantee. Everything you see today stays free.</li>
+    <li><b>What's Pro?</b> An optional <b>$15 one-time purchase</b> (no subscription, ever) that unlocks saved reusable signatures, reusable templates, and batch filling. Comes with a 14-day money-back guarantee. Everything you see today stays free.</li>
   </ul>
 </div>
 
@@ -330,29 +412,102 @@
       <button class="mbtn" onclick="closeModal('sigmodal')">Cancel</button>
       <button class="mbtn primary" onclick="useSig()">Use signature</button>
     </div>
+    <div class="row" style="border-top:1px solid var(--border);margin-top:16px;padding-top:14px">
+      <b style="font-size:13px">Saved signatures</b>
+      <button class="mbtn" style="margin-left:auto" onclick="saveCurrentSig()">Save signature<span class="lock"> 🔒</span></button>
+    </div>
+    <div class="sigthumbs" id="sigthumbs"></div>
   </div>
 </div>
 
 <div class="modal-bg" id="promodal" onclick="if(event.target===this)closeModal('promodal')">
   <div class="modal">
     <h3>✨ FillSign Pro — $15, one-time, yours forever</h3>
-    <p>Never a subscription. Coming soon at a single one-time price of <b>$15</b>, including:</p>
-    <ul>
-      <li>Saved signatures — sign any document in two clicks</li>
-      <li>Batch mode — fill many files at once</li>
-      <li>Reusable templates for forms you fill monthly</li>
-    </ul>
-    <p>While we're in beta, <b>everything is free</b>. Enjoy.</p>
+    <p id="pro-active-note" style="display:none;color:#15803d;font-weight:600">Pro is active on this browser. Thank you for supporting FillSign!</p>
+    <div id="pro-buy-area">
+      <p>Never a subscription. A single one-time payment of <b>$15</b> unlocks:</p>
+      <ul>
+        <li>Saved signatures — sign any document in two clicks</li>
+        <li>Reusable templates for forms you fill monthly</li>
+        <li>Batch filling — fill many files at once</li>
+      </ul>
+      <p>Comes with a 14-day money-back guarantee, no questions asked.</p>
+      <div class="row" style="justify-content:flex-end">
+        <a class="mbtn primary" style="text-decoration:none" target="_blank" rel="noopener"
+           href="https://www.creem.io/payment/prod_1R9ppNz0zTSA9iO4nw8jcH">Buy FillSign Pro — $15 lifetime</a>
+      </div>
+      <p style="margin-top:12px;text-align:right">
+        <a href="#" style="color:var(--accent)" onclick="closeModal('promodal');openLicenseModal(false);return false">Already bought? Enter your license key</a>
+      </p>
+    </div>
     <div class="row" style="justify-content:flex-end">
-      <button class="mbtn primary" onclick="closeModal('promodal')">Got it</button>
+      <button class="mbtn" onclick="closeModal('promodal')">Close</button>
     </div>
   </div>
 </div>
+
+<div class="modal-bg" id="licmodal" onclick="if(event.target===this)closeModal('licmodal')">
+  <div class="modal">
+    <h3 id="lic-title">Enter your license key</h3>
+    <p id="lic-intro">Paste the license key from your purchase email to unlock Pro on this browser.</p>
+    <div class="row">
+      <input class="txtin" id="lickey" style="flex:1;min-width:200px" placeholder="Your license key" autocomplete="off" spellcheck="false">
+      <button class="mbtn primary" id="licbtn" onclick="activateLicense()">Activate</button>
+    </div>
+    <p class="licerr" id="licerr"></p>
+    <div class="row" style="justify-content:flex-end">
+      <button class="mbtn" onclick="closeModal('licmodal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="tplmodal" onclick="if(event.target===this)closeModal('tplmodal')">
+  <div class="modal">
+    <h3>📋 Templates</h3>
+    <p>Save the fields you placed on this document, then re-apply them next time you fill the same form.</p>
+    <div class="row">
+      <input class="txtin" id="tplname" style="flex:1;min-width:180px" placeholder="Template name, e.g. Monthly invoice" maxlength="60">
+      <button class="mbtn primary" onclick="saveTemplate()">Save as template</button>
+    </div>
+    <div id="tpllist"></div>
+    <div class="row" style="justify-content:flex-end">
+      <button class="mbtn" onclick="closeModal('tplmodal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="batchmodal" onclick="if(event.target===this)closeModal('batchmodal')">
+  <div class="modal">
+    <h3>🗂 Batch filling</h3>
+    <p>Pick a saved template and several PDF files. Each file is filled on your device and downloaded as <b>name-filled.pdf</b> — nothing is uploaded.</p>
+    <div class="row">
+      <select class="txtin" id="batchtpl" style="flex:1;min-width:180px"></select>
+    </div>
+    <div class="row">
+      <input type="file" id="batchfiles" accept="application/pdf" multiple style="font-size:14px">
+    </div>
+    <p id="batchprog"></p>
+    <div id="batchlog"></div>
+    <div class="row" style="justify-content:flex-end">
+      <button class="mbtn" onclick="closeModal('batchmodal')">Close</button>
+      <button class="mbtn primary" id="batchrun" onclick="runBatch()">Fill &amp; download all</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
 
 <input type="file" id="file" accept="application/pdf" hidden>
 
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+const LICENSE_PROXY = 'https://fillsign-license.florianfouine470.workers.dev'; // Cloudflare Worker license proxy, no trailing slash
+const LS_LICENSE = 'fillsign_license';
+const LS_INSTANCE = 'fillsign_instance';
+const LS_SIGS = 'fillsign_sigs';
+const LS_TPLS = 'fillsign_templates';
+let isPro = false;
 
 let pdfBytes = null;      // original file bytes (ArrayBuffer)
 let fileName = 'document';
@@ -457,21 +612,22 @@ function baseEl(pg, type, x, y) {
   return el;
 }
 
-function addText(pg, x, y) {
+function addText(pg, x, y, txt, fs) {
   const el = baseEl(pg, 'text', x, y);
-  el.fs = 16;
+  el.fs = fs || 16;
   const span = document.createElement('span');
   try { span.contentEditable = 'plaintext-only'; } catch { span.contentEditable = 'true'; }
   span.style.fontSize = el.fs + 'px';
   el.node.appendChild(span);
   span.addEventListener('blur', () => { if (!span.innerText.trim()) removeEl(el); });
+  if (txt) { span.innerText = txt; return; } // placed from a template: no focus needed
   select(el);
   setTimeout(() => span.focus(), 0);
 }
 
-function addCheck(pg, x, y) {
+function addCheck(pg, x, y, fs) {
   const el = baseEl(pg, 'check', x, y);
-  el.fs = 18;
+  el.fs = fs || 18;
   const s = document.createElement('div');
   s.textContent = '✓';
   s.style.fontSize = el.fs + 'px';
@@ -479,11 +635,12 @@ function addCheck(pg, x, y) {
   select(el);
 }
 
-function addSig(pg, x, y, dataUrl) {
+function addSig(pg, x, y, dataUrl, w, ratio) {
   const el = baseEl(pg, 'sig', x, y);
   el.sig = dataUrl;
-  el.w = SIG_W;
-  el.h = SIG_W * sigRatio;
+  el.ratio = ratio || sigRatio;
+  el.w = w || SIG_W;
+  el.h = el.w * el.ratio;
   el.node.style.width = el.w + 'px';
   el.node.style.height = el.h + 'px';
   const img = document.createElement('img');
@@ -559,7 +716,7 @@ function startResize(e, el) {
   const startX = e.clientX, ow = el.w;
   function mv(ev) {
     el.w = Math.max(50, ow + (ev.clientX - startX));
-    el.h = el.w * sigRatio;
+    el.h = el.w * (el.ratio || sigRatio);
     el.node.style.width = el.w + 'px';
     el.node.style.height = el.h + 'px';
   }
@@ -682,9 +839,452 @@ async function downloadPdf() {
 /* ---------- modals ---------- */
 function openModal(id) {
   document.getElementById(id).classList.add('open');
-  if (id === 'sigmodal') setTimeout(setupPad, 30);
+  if (id === 'sigmodal') { setTimeout(setupPad, 30); renderSigThumbs(); }
 }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+/* ---------- toast & storage helpers ---------- */
+let toastTimer = null;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3400);
+}
+
+function lsGet(key, fallback) {
+  try {
+    const v = JSON.parse(localStorage.getItem(key));
+    return (v === null || v === undefined) ? fallback : v;
+  } catch { return fallback; }
+}
+function lsSet(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)); return true; }
+  catch { toast('Could not save - browser storage is full.'); return false; }
+}
+
+/* ---------- pro state & license ---------- */
+function instanceId() {
+  let id = localStorage.getItem(LS_INSTANCE);
+  if (!id) {
+    id = (window.crypto && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : 'fs-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+    localStorage.setItem(LS_INSTANCE, id);
+  }
+  return id;
+}
+
+function setPro(on) {
+  isPro = on;
+  document.body.classList.toggle('pro', on);
+  document.getElementById('propill').classList.toggle('active', on);
+  document.getElementById('pillsub').style.display = on ? 'none' : '';
+  document.getElementById('pro-active-note').style.display = on ? '' : 'none';
+  document.getElementById('pro-buy-area').style.display = on ? 'none' : '';
+}
+
+function requirePro() {
+  if (isPro) return true;
+  openModal('promodal');
+  return false;
+}
+
+function openLicenseModal(welcome) {
+  document.getElementById('lic-title').textContent = welcome
+    ? 'Welcome to FillSign Pro!'
+    : 'Enter your license key';
+  document.getElementById('lic-intro').textContent = welcome
+    ? 'Thanks for buying FillSign Pro! Your license key was emailed to you (check spam too). Enter it below to unlock.'
+    : 'Paste the license key from your purchase email to unlock Pro on this browser.';
+  document.getElementById('licerr').style.display = 'none';
+  openModal('licmodal');
+  setTimeout(() => document.getElementById('lickey').focus(), 30);
+}
+
+function licError(msg) {
+  const e = document.getElementById('licerr');
+  e.textContent = msg;
+  e.style.display = 'block';
+}
+
+async function postJson(url, body) {
+  const ctl = new AbortController();
+  const tm = setTimeout(() => ctl.abort(), 12000);
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: ctl.signal,
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return await res.json();
+  } finally { clearTimeout(tm); }
+}
+
+async function activateLicense() {
+  const key = document.getElementById('lickey').value.trim();
+  if (!key) { licError('Please paste your license key first.'); return; }
+  if (LICENSE_PROXY === 'WORKER_URL_PLACEHOLDER') {
+    licError('The license service is not configured yet. Please try again a bit later, or email us.');
+    return;
+  }
+  const btn = document.getElementById('licbtn');
+  btn.disabled = true;
+  btn.textContent = 'Checking...';
+  try {
+    const res = await postJson(LICENSE_PROXY + '/activate', {
+      key, instance_id: instanceId(), instance_name: 'browser',
+    });
+    if (res && res.valid) {
+      lsSet(LS_LICENSE, { key });
+      setPro(true);
+      closeModal('licmodal');
+      toast('Pro unlocked. Thank you for supporting FillSign!');
+    } else {
+      licError((res && res.error) ? res.error : 'That key did not work. Check for typos and try again.');
+    }
+  } catch {
+    licError('Could not reach the license server. Check your connection and try again.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Activate';
+  }
+}
+
+function initLicense() {
+  const lic = lsGet(LS_LICENSE, null);
+  if (lic && lic.key) {
+    setPro(true); // optimistic: keep Pro on while we re-check in the background
+    if (LICENSE_PROXY !== 'WORKER_URL_PLACEHOLDER') {
+      postJson(LICENSE_PROXY + '/validate', { key: lic.key, instance_id: instanceId() })
+        .then(res => {
+          // Only an explicit "valid: false" revokes. Network errors,
+          // timeouts and non-200 answers keep Pro on (offline grace).
+          if (res && res.valid === false) {
+            localStorage.removeItem(LS_LICENSE);
+            setPro(false);
+            toast('Your Pro license is no longer valid, so Pro features were turned off.');
+          }
+        })
+        .catch(() => {});
+    }
+  }
+  const usp = new URLSearchParams(location.search);
+  if (usp.get('welcome') === 'pro') {
+    usp.delete('welcome');
+    const qs = usp.toString();
+    history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash);
+    if (!isPro) openLicenseModal(true);
+  }
+}
+
+document.getElementById('lickey').addEventListener('keydown', e => {
+  if (e.key === 'Enter') activateLicense();
+});
+
+/* ---------- saved signatures (Pro) ---------- */
+function getSavedSigs() {
+  const v = lsGet(LS_SIGS, []);
+  return Array.isArray(v) ? v : [];
+}
+
+function saveCurrentSig() {
+  if (!requirePro()) return;
+  if (!padDirty) { alert('Draw your signature first.'); return; }
+  const sigs = getSavedSigs();
+  if (sigs.length >= 5) { toast('You can keep up to 5 signatures. Delete one first.'); return; }
+  sigs.push(pad.toDataURL('image/png'));
+  if (lsSet(LS_SIGS, sigs)) { renderSigThumbs(); toast('Signature saved.'); }
+}
+
+function deleteSavedSig(i) {
+  const sigs = getSavedSigs();
+  sigs.splice(i, 1);
+  lsSet(LS_SIGS, sigs);
+  renderSigThumbs();
+}
+
+function pickSavedSig(i) {
+  if (!requirePro()) return;
+  const url = getSavedSigs()[i];
+  if (!url) return;
+  const img = new Image();
+  img.onload = () => {
+    if (img.naturalWidth) sigRatio = img.naturalHeight / img.naturalWidth;
+    savedSig = url;
+    closeModal('sigmodal');
+    setMode('sign');
+  };
+  img.src = url;
+}
+
+function renderSigThumbs() {
+  const box = document.getElementById('sigthumbs');
+  box.innerHTML = '';
+  const sigs = getSavedSigs();
+  if (!sigs.length) {
+    const p = document.createElement('p');
+    p.style.fontSize = '13px';
+    p.textContent = isPro
+      ? 'No saved signatures yet. Draw one above, then press Save signature.'
+      : 'Pro keeps up to 5 signatures here so you can reuse them in one click.';
+    box.appendChild(p);
+    return;
+  }
+  sigs.forEach((url, i) => {
+    const d = document.createElement('div');
+    d.className = 'sigthumb';
+    d.title = 'Click to use this signature';
+    d.onclick = () => pickSavedSig(i);
+    const img = document.createElement('img');
+    img.src = url;
+    d.appendChild(img);
+    const x = document.createElement('button');
+    x.className = 'x';
+    x.textContent = '×';
+    x.title = 'Delete';
+    x.onclick = ev => { ev.stopPropagation(); deleteSavedSig(i); };
+    d.appendChild(x);
+    box.appendChild(d);
+  });
+}
+
+/* ---------- templates (Pro) ---------- */
+function getTemplates() {
+  const v = lsGet(LS_TPLS, []);
+  return Array.isArray(v) ? v : [];
+}
+
+function openTemplates() {
+  if (!requirePro()) return;
+  renderTplList();
+  openModal('tplmodal');
+}
+
+// Capture every placed element in page-relative units so a template
+// works at any render scale: rx/ry are fractions of the page,
+// fs is the font size in PDF points (same unit the export uses).
+function captureTemplate() {
+  const els = [];
+  for (const el of elements) {
+    const m = pageMeta[el.page];
+    const t = { type: el.type, page: el.page, rx: el.x / m.wpx, ry: el.y / m.hpx };
+    if (el.type === 'text') {
+      const span = el.node.querySelector('span');
+      const txt = span ? span.innerText : '';
+      if (!txt.trim()) continue;
+      t.text = txt;
+      t.fs = el.fs / m.scale;
+    } else if (el.type === 'check') {
+      t.fs = el.fs / m.scale;
+    } else if (el.type === 'sig') {
+      t.sig = el.sig; // dataURL already carries the ink color
+      t.rw = el.w / m.wpx;
+      t.ratio = el.h / el.w;
+    }
+    els.push(t);
+  }
+  return els;
+}
+
+function saveTemplate() {
+  if (!requirePro()) return;
+  const name = document.getElementById('tplname').value.trim();
+  if (!name) { toast('Give your template a name first.'); return; }
+  const els = captureTemplate();
+  if (!els.length) { toast('Place some fields on the document first.'); return; }
+  const tpls = getTemplates();
+  if (tpls.length >= 10) { toast('You can keep up to 10 templates. Delete one first.'); return; }
+  tpls.push({ name, elements: els });
+  if (lsSet(LS_TPLS, tpls)) {
+    document.getElementById('tplname').value = '';
+    renderTplList();
+    toast('Template saved.');
+  }
+}
+
+function applyTemplate(i) {
+  const tpl = getTemplates()[i];
+  if (!tpl || !pageMeta.length) return;
+  let placed = 0, skipped = 0;
+  for (const t of tpl.elements) {
+    if (t.page >= pageMeta.length) { skipped++; continue; }
+    const m = pageMeta[t.page];
+    const x = t.rx * m.wpx, y = t.ry * m.hpx;
+    if (t.type === 'text') addText(t.page, x, y, t.text, t.fs * m.scale);
+    else if (t.type === 'check') addCheck(t.page, x, y, t.fs * m.scale);
+    else if (t.type === 'sig') addSig(t.page, x, y, t.sig, t.rw * m.wpx, t.ratio);
+    placed++;
+  }
+  select(null);
+  closeModal('tplmodal');
+  toast(skipped
+    ? 'Placed ' + placed + ' fields. Skipped ' + skipped + ' (page not in this document).'
+    : 'Placed ' + placed + ' fields from "' + tpl.name + '".');
+}
+
+function renameTemplate(i) {
+  const tpls = getTemplates();
+  const name = prompt('New template name:', tpls[i].name);
+  if (!name || !name.trim()) return;
+  tpls[i].name = name.trim().slice(0, 60);
+  lsSet(LS_TPLS, tpls);
+  renderTplList();
+}
+
+function deleteTemplate(i) {
+  const tpls = getTemplates();
+  if (!confirm('Delete template "' + tpls[i].name + '"?')) return;
+  tpls.splice(i, 1);
+  lsSet(LS_TPLS, tpls);
+  renderTplList();
+}
+
+function renderTplList() {
+  const box = document.getElementById('tpllist');
+  box.innerHTML = '';
+  const tpls = getTemplates();
+  if (!tpls.length) {
+    const p = document.createElement('p');
+    p.style.fontSize = '13px';
+    p.textContent = 'No templates yet. Place your fields, name the template, and save it.';
+    box.appendChild(p);
+    return;
+  }
+  tpls.forEach((tpl, i) => {
+    const row = document.createElement('div');
+    row.className = 'tplrow';
+    const name = document.createElement('span');
+    name.className = 'tplname';
+    name.textContent = tpl.name + ' (' + tpl.elements.length + ' fields)';
+    row.appendChild(name);
+    [['Apply', () => applyTemplate(i)],
+     ['Rename', () => renameTemplate(i)],
+     ['Delete', () => deleteTemplate(i)]].forEach(pair => {
+      const b = document.createElement('button');
+      b.className = 'mbtn small';
+      b.textContent = pair[0];
+      b.onclick = pair[1];
+      row.appendChild(b);
+    });
+    box.appendChild(row);
+  });
+}
+
+/* ---------- batch filling (Pro) ---------- */
+function openBatch() {
+  if (!requirePro()) return;
+  const sel = document.getElementById('batchtpl');
+  sel.innerHTML = '';
+  const tpls = getTemplates();
+  if (!tpls.length) {
+    const o = document.createElement('option');
+    o.value = '';
+    o.textContent = 'No templates saved yet';
+    sel.appendChild(o);
+  } else {
+    tpls.forEach((tpl, i) => {
+      const o = document.createElement('option');
+      o.value = i;
+      o.textContent = tpl.name + ' (' + tpl.elements.length + ' fields)';
+      sel.appendChild(o);
+    });
+  }
+  document.getElementById('batchlog').innerHTML = '';
+  document.getElementById('batchprog').textContent = '';
+  openModal('batchmodal');
+}
+
+// Stamp a template straight onto a pdf-lib document (no rendering).
+// Uses the same coordinate conversion as downloadPdf: rx * pageWidth
+// equals el.x / scale, ry * pageHeight equals el.y / scale.
+async function stampTemplate(doc, tpl) {
+  const font = await doc.embedFont(PDFLib.StandardFonts.Helvetica);
+  const pages = doc.getPages();
+  const sigCache = {};
+  let skipped = 0;
+  for (const t of tpl.elements) {
+    if (t.page >= pages.length) { skipped++; continue; }
+    const p = pages[t.page];
+    const pw = p.getWidth(), ph = p.getHeight();
+    const x = t.rx * pw, yTop = t.ry * ph;
+    if (t.type === 'text') {
+      const size = t.fs;
+      const lineH = t.fs * 1.18;
+      sanitize(t.text || '').split('\n').forEach((line, i) => {
+        p.drawText(line, {
+          x,
+          y: ph - yTop - (i + 1) * lineH + lineH * 0.22,
+          size, font, color: PDFLib.rgb(0.07, 0.07, 0.07),
+        });
+      });
+    } else if (t.type === 'check') {
+      const u = t.fs;
+      const bx = x, by = ph - yTop - u;
+      const c = PDFLib.rgb(0.11, 0.3, 0.85);
+      const th = Math.max(1.2, u * 0.13);
+      p.drawLine({ start: { x: bx + u * 0.1, y: by + u * 0.45 }, end: { x: bx + u * 0.38, y: by + u * 0.15 }, thickness: th, color: c });
+      p.drawLine({ start: { x: bx + u * 0.38, y: by + u * 0.15 }, end: { x: bx + u * 0.9, y: by + u * 0.85 }, thickness: th, color: c });
+    } else if (t.type === 'sig') {
+      if (!sigCache[t.sig]) sigCache[t.sig] = await doc.embedPng(t.sig);
+      const w = t.rw * pw, h = w * t.ratio;
+      p.drawImage(sigCache[t.sig], { x, y: ph - yTop - h, width: w, height: h });
+    }
+  }
+  return skipped;
+}
+
+let batchRunning = false;
+async function runBatch() {
+  if (!requirePro() || batchRunning) return;
+  const tpl = getTemplates()[+document.getElementById('batchtpl').value];
+  if (!tpl) { toast('Save a template first: open a PDF, place your fields, then Templates.'); return; }
+  const files = document.getElementById('batchfiles').files;
+  if (!files || !files.length) { toast('Choose one or more PDF files first.'); return; }
+  batchRunning = true;
+  const btn = document.getElementById('batchrun');
+  btn.disabled = true;
+  const log = document.getElementById('batchlog');
+  const prog = document.getElementById('batchprog');
+  log.innerHTML = '';
+  let ok = 0, failed = 0;
+  for (let i = 0; i < files.length; i++) {  // one at a time keeps memory sane
+    const f = files[i];
+    prog.textContent = 'Processing ' + (i + 1) + ' of ' + files.length + ': ' + f.name;
+    const line = document.createElement('div');
+    line.className = 'batchline';
+    line.textContent = f.name + ' ...';
+    log.appendChild(line);
+    try {
+      const bytes = await f.arrayBuffer();
+      const doc = await PDFLib.PDFDocument.load(bytes);
+      const skipped = await stampTemplate(doc, tpl);
+      const out = await doc.save();
+      const blob = new Blob([out], { type: 'application/pdf' });
+      const a = document.createElement('a');
+      const href = URL.createObjectURL(blob);
+      a.href = href;
+      a.download = f.name.replace(/\.pdf$/i, '') + '-filled.pdf';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(href), 8000);
+      line.textContent = f.name + ' - done' + (skipped ? ' (' + skipped + ' fields skipped: page missing)' : '');
+      line.style.color = 'var(--green)';
+      ok++;
+    } catch {
+      line.textContent = f.name + ' - failed (could not process this file)';
+      line.style.color = '#dc2626';
+      failed++;
+    }
+  }
+  prog.textContent = 'Done: ' + ok + ' filled' + (failed ? ', ' + failed + ' failed' : '') + '.';
+  btn.disabled = false;
+  batchRunning = false;
+}
+
+initLicense();
 </script>
 <script>
   window.goatcounter = { path: function(p) { return location.host + p; } };
