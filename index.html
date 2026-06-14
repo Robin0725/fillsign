@@ -946,10 +946,10 @@ async function activateLicense() {
   btn.textContent = 'Checking...';
   try {
     const res = await postJson(LICENSE_PROXY + '/activate', {
-      key, instance_id: instanceId(), instance_name: 'browser',
+      key, instance_name: 'browser',
     });
     if (res && res.valid) {
-      lsSet(LS_LICENSE, { key });
+      lsSet(LS_LICENSE, { key, instance_id: res.instance_id || '' });
       setPro(true);
       closeModal('licmodal');
       toast('Pro unlocked. Thank you for supporting FillSign!');
@@ -968,8 +968,8 @@ function initLicense() {
   const lic = lsGet(LS_LICENSE, null);
   if (lic && lic.key) {
     setPro(true); // optimistic: keep Pro on while we re-check in the background
-    if (LICENSE_PROXY !== 'WORKER_URL_PLACEHOLDER') {
-      postJson(LICENSE_PROXY + '/validate', { key: lic.key, instance_id: instanceId() })
+    if (LICENSE_PROXY !== 'WORKER_URL_PLACEHOLDER' && lic.instance_id) {
+      postJson(LICENSE_PROXY + '/validate', { key: lic.key, instance_id: lic.instance_id })
         .then(res => {
           // Only an explicit "valid: false" revokes. Network errors,
           // timeouts and non-200 answers keep Pro on (offline grace).
